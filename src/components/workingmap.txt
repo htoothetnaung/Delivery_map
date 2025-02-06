@@ -1,0 +1,178 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { api, Report, Shelter } from '../services/api';
+import axios from 'axios';
+import L from 'leaflet';
+
+const DefaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+const RedIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+const MapView = () => {
+  const [position, setPosition] = useState<[number, number]>([16.8397, 96.1444]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [shelters, setShelters] = useState<Shelter[]>([]);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null);
+  const [formType, setFormType] = useState<'shelter' | 'report' | null>(null);
+
+  useEffect(() => {
+    api.getShelters().then((res) => setShelters(res.data));
+    api.getReports().then((res) => setReports(res.data));
+  }, []);
+
+  const handleGetUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+          setPosition([latitude, longitude]);
+        },
+        (error) => alert('Unable to retrieve location.')
+      );
+    } else {
+      alert('Geolocation not supported.');
+    }
+  };
+
+  const calculateTravelTime = async (to: [number, number]) => {
+    if (!userLocation) {
+      alert('Please enable location services first.');
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `https://router.project-osrm.org/route/v1/driving/${userLocation[1]},${userLocation[0]};${to[1]},${to[0]}?overview=false`
+      );
+      alert(`Travel time: ${Math.round(response.data.routes[0].duration / 60)} minutes`);
+    } catch (error) {
+      alert('Failed to get travel time.');
+    }
+  };
+
+  function MapClickHandler() {
+    useMapEvents({
+      click: (e) => {
+        setSelectedPosition([e.latlng.lat, e.latlng.lng]);
+        setShowForm(true);
+        setFormType(null);
+      },
+    });
+    return null;
+  }
+
+  return (
+    <div style={{ height: '90vh', width: '100%' }}>
+      <button onClick={handleGetUserLocation} style={{ position: 'absolute', zIndex: 1000, margin: '10px' }}>
+        📍 Enable My Location
+      </button>
+      <button onClick={() => { setShowForm(false); setSelectedPosition(null); }} style={{ position: 'absolute', zIndex: 1000, margin: '50px' }}>
+        📌 Report on Map
+      </button>
+
+      <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <MapClickHandler />
+
+        {shelters.map((shelter) => (
+          <Marker key={shelter.id} position={[shelter.lat, shelter.lng]} icon={DefaultIcon}>
+            <Popup>
+              <h4>{shelter.name}</h4>
+              <p>Contact: {shelter.contact}</p>
+              <button onClick={() => calculateTravelTime([shelter.lat, shelter.lng])}>🚗 Get Directions</button>
+            </Popup>
+          </Marker>
+        ))}
+
+        {reports.map((report) => (
+          <Marker key={report.id} position={[report.lat, report.lng]} icon={RedIcon}>
+            <Popup>{report.description}</Popup>
+          </Marker>
+        ))}
+
+        {selectedPosition && (
+          <Marker position={selectedPosition} icon={RedIcon}>
+            <Popup>
+              <button onClick={() => setFormType('report')}>📢 Report Issue</button>
+              <button onClick={() => setFormType('shelter')}>🏠 Add Shelter</button>
+            </Popup>
+          </Marker>
+        )}
+      </MapContainer>
+
+      {showForm && selectedPosition && formType && (
+        <div className="form-popup">
+          <h3>{formType === 'report' ? 'Report Issue' : 'Add Shelter'}</h3>
+          <form
+  onSubmit={async (e) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+
+    if (!selectedPosition) return;
+
+    if (formType === 'report') {
+      const newReport: Report = {
+        lat: selectedPosition[0],
+        lng: selectedPosition[1],
+        description: data.get('description') as string,
+        petType: 'lost',
+        status: 'pending',
+        pending: '',
+      };
+
+      try {
+        const res = await api.submitReport(newReport);
+        setReports([...reports, res.data]); // ✅ Update state with response data
+      } catch (error) {
+        alert('Failed to submit report.');
+      }
+    } else if (formType === 'shelter') {
+      const newShelter: Shelter = {
+        id: Date.now(),
+        lat: selectedPosition[0],
+        lng: selectedPosition[1],
+        name: data.get('name') as string,
+        contact: data.get('contact') as string,
+      };
+
+      try {
+        const res = await api.submitShelter(newShelter);
+        setShelters([...shelters, res.data]); // ✅ Update state with response data
+      } catch (error) {
+        alert('Failed to submit shelter.');
+      }
+    }
+
+    setShowForm(false);
+    setFormType(null);
+    setSelectedPosition(null);
+  }}
+>
+            {formType === 'report' && <textarea name="description" placeholder="Describe the issue..." required />}
+            {formType === 'shelter' && <><input name="name" placeholder="Shelter Name" required /><input name="contact" placeholder="Contact" required /></>}
+            <button type="submit">Submit</button>
+            <button onClick={() => setShowForm(false)}>Cancel</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MapView;
