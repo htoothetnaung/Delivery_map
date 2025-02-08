@@ -23,5 +23,7 @@ export enum YANGON_TOWNSHIPS {
     EastDagon = "East Dagon",
     NorthOkkalapa = "North Okkalapa",
     Thanlyin = "Thanlyin",
-    Insein = "Insein"
+    Insein = "Insein",
+    ThingyanKyun = "Thingan Kyun",
+    MingalarTaungNyunt = "Mingalar Taung Nyunt"
 }

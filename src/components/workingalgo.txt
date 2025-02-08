@@ -1,0 +1,135 @@
+const calculateDeliveryRoutes = async () => {
+    setIsLoading(true);
+    try {
+      let availableReports = [...reports];
+      const routeInformation: RouteInfo[] = [];
+      const clusters: Array<Report[]> = [];
+
+      // Define region centers based on the map's geographical areas
+      const regionCenters = [
+        { lat: 16.8397, lng: 96.1444 }, // Downtown/South
+        { lat: 16.8597, lng: 96.1644 }, // Central/East
+        { lat: 16.8497, lng: 96.1244 }, // West
+        { lat: 16.8797, lng: 96.1544 }  // North
+      ];
+
+      // Initialize clusters for each delivery
+      deliveries.forEach(() => clusters.push([]));
+
+      // First pass: Ensure each delivery gets at least 4 reports
+      for (let i = 0; i < deliveries.length && availableReports.length > 0; i++) {
+        const center = regionCenters[i];
+
+        // Get 4 closest reports to this region center
+        while (clusters[i].length < 4 && availableReports.length > 0) {
+          // Find closest report to current center
+          let closestReport = availableReports[0];
+          let shortestDistance = calculateDistance(
+            closestReport.lat,
+            closestReport.lng,
+            center.lat,
+            center.lng
+          );
+
+          availableReports.forEach(report => {
+            const distance = calculateDistance(
+              report.lat,
+              report.lng,
+              center.lat,
+              center.lng
+            );
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              closestReport = report;
+            }
+          });
+
+          // Add closest report to cluster
+          clusters[i].push(closestReport);
+          availableReports = availableReports.filter(r => r.id !== closestReport.id);
+        }
+      }
+
+      // Second pass: Distribute any remaining reports to nearest clusters
+      while (availableReports.length > 0) {
+        const report = availableReports[0];
+        let nearestClusterIndex = 0;
+        let shortestDistance = Infinity;
+
+        regionCenters.forEach((center, index) => {
+          if (index >= clusters.length) return;
+
+          const distance = calculateDistance(
+            report.lat,
+            report.lng,
+            center.lat,
+            center.lng
+          );
+
+          if (distance < shortestDistance) {
+            shortestDistance = distance;
+            nearestClusterIndex = index;
+          }
+        });
+
+        clusters[nearestClusterIndex].push(report);
+        availableReports = availableReports.filter(r => r.id !== report.id);
+      }
+
+      // Calculate routes for each cluster in parallel
+      const routePromises = clusters.map(async (cluster, index) => {
+        if (!cluster.length || index >= deliveries.length) return null;
+        const delivery = deliveries[index];
+
+        let coordinates = `${delivery.lng},${delivery.lat}`;
+        cluster.forEach(report => {
+          coordinates += `;${report.lng},${report.lat}`;
+        });
+
+        try {
+          const response = await axios.get(
+            `https://router.project-osrm.org/trip/v1/driving/${coordinates}?roundtrip=true&source=first`
+          );
+
+          if (response.data.trips && response.data.trips.length > 0) {
+            return {
+              deliveryId: delivery.id,
+              route: decodePolyline(response.data.trips[0].geometry),
+              info: {
+                deliveryId: delivery.id,
+                shopName: delivery.shopName[0],
+                totalTime: Math.round(response.data.trips[0].duration / 60),
+                reports: cluster.map(r => ({
+                  description: r.description,
+                  distance: calculateDistance(delivery.lat, delivery.lng, r.lat, r.lng)
+                }))
+              }
+            };
+          }
+        } catch (error) {
+          console.error(`Failed to calculate route for delivery ${delivery.id}:`, error);
+          return null;
+        }
+      });
+
+      // Wait for all route calculations to complete
+      const results = await Promise.all(routePromises);
+      const deliveryRoutesMap: { [key: number]: [number, number][] } = {};
+
+      results.forEach(result => {
+        if (result) {
+          deliveryRoutesMap[result.deliveryId] = result.route;
+          routeInformation.push(result.info);
+        }
+      });
+
+      setDeliveryRoutes(deliveryRoutesMap);
+      setRouteInfos(routeInformation);
+      setIsInfoMinimized(false);
+
+    } catch (error) {
+      console.error('Failed to calculate delivery routes:', error);
+      alert('Failed to calculate delivery routes. Please try again.');
+    }
+    setIsLoading(false);
+  };

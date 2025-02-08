@@ -3,11 +3,14 @@ import axios from 'axios';
 
 const API_BASE = 'http://localhost:3001';
 
+
+
 export interface Report {
   id?: number;
   lat: number;
   lng: number;
   description: string;
+  township: string;
   petType: 'lost' | 'injured';
   status: string;
   pending: string;

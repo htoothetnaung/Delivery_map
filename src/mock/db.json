@@ -54,7 +54,7 @@
       "lat": 16.855897,
       "lng": 96.175512,
       "description": "Inya Lake Hotel Area",
-      "petType": "lost",
+      "township": "South Okkalapa",
       "status": "pending",
       "id": 8
     },
@@ -70,7 +70,7 @@
       "lat": 16.887091,
       "lng": 96.199270,
       "description": "8 Mile Junction",
-      "petType": "lost",
+      "township": "North Dagon",
       "status": "pending",
       "id": 10
     },
@@ -86,7 +86,7 @@
       "lat": 16.866069,
       "lng": 96.163564,
       "description": "Sedona Hotel",
-      "petType": "lost",
+      "township": "South Okkalapa",
       "status": "pending",
       "id": 12
     },
@@ -110,7 +110,7 @@
       "lat": 16.851123,
       "lng": 96.214174,
       "description": "Myanmar Plaza",
-      "petType": "injured",
+      "township": "South Dagon",
       "status": "pending",
       "id": 15
     },
@@ -134,7 +134,7 @@
       "lat": 16.897241,
       "lng": 96.199521,
       "description": "Mingalardon",
-      "petType": "lost",
+      "township": "East Dagon",
       "status": "pending",
       "id": 18
     },

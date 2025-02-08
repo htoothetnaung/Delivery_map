@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { api, Report, Shelter, Delivery } from '../services/api';
 import axios from 'axios';
 import L from 'leaflet';
+import { YANGON_TOWNSHIPS } from '../constants/townships';
 
 
 // Fix Leaflet marker icons
@@ -50,6 +51,12 @@ interface RouteInfo {
   }>;
 }
 
+const location_gp1: string[] = [YANGON_TOWNSHIPS.Tarmwe, YANGON_TOWNSHIPS.Bahan, YANGON_TOWNSHIPS.Yankin, YANGON_TOWNSHIPS.Dagon, YANGON_TOWNSHIPS.Thaketa];
+const location_gp2: string[] = [YANGON_TOWNSHIPS.ThingyanKyun, YANGON_TOWNSHIPS.SouthOkkalapa, YANGON_TOWNSHIPS.NorthDagon, YANGON_TOWNSHIPS.SouthDagon, YANGON_TOWNSHIPS.EastDagon]
+const location_gp3: string[] = [YANGON_TOWNSHIPS.Hlaing, YANGON_TOWNSHIPS.Insein, YANGON_TOWNSHIPS.HlaingTharYar, YANGON_TOWNSHIPS.Sanchaung, YANGON_TOWNSHIPS.Kamaryut]
+const location_gp4: string[] = [YANGON_TOWNSHIPS.Lanmadaw, YANGON_TOWNSHIPS.Latha, YANGON_TOWNSHIPS.PazundaungTownship, YANGON_TOWNSHIPS.Botahtaung, YANGON_TOWNSHIPS.Kyauktada, YANGON_TOWNSHIPS.MingalarTaungNyunt]
+
+
 const MapView = () => {
   const [position, setPosition] = useState<[number, number]>([16.8397, 96.1444]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -74,6 +81,16 @@ const MapView = () => {
   const [routeInfos, setRouteInfos] = useState<RouteInfo[]>([]);
   const [isInfoMinimized, setIsInfoMinimized] = useState(false);
 
+  // Add new state for time complexity
+  const [algorithmStats, setAlgorithmStats] = useState<{
+    timeComplexity: string;
+    executionTime: number;
+    proximityStats: string;
+  }>({
+    timeComplexity: '',
+    executionTime: 0,
+    proximityStats: ''
+  });
 
   // Fetch initial data
   useEffect(() => {
@@ -125,6 +142,7 @@ const MapView = () => {
           }
         }
 
+
         setRouteSegments(segments);
         setTotalTravelTime(Math.round(trips[0].duration / 60));
 
@@ -164,82 +182,83 @@ const MapView = () => {
   };
 
   const calculateDeliveryRoutes = async () => {
+    const startTime = performance.now();
     setIsLoading(true);
     try {
       let availableReports = [...reports];
       const routeInformation: RouteInfo[] = [];
       const clusters: Array<Report[]> = [];
+      const proximityData: { min: number; max: number; avg: number } = {
+        min: Infinity,
+        max: 0,
+        avg: 0
+      };
+      let totalDistances = 0;
+      let distanceCount = 0;
 
-      // Define region centers based on the map's geographical areas
-      const regionCenters = [
-        { lat: 16.8397, lng: 96.1444 }, // Downtown/South
-        { lat: 16.8597, lng: 96.1644 }, // Central/East
-        { lat: 16.8497, lng: 96.1244 }, // West
-        { lat: 16.8797, lng: 96.1544 }  // North
-      ];
+      // Initialize clusters
+      const numberOfGroups = 4;
+      for (let i = 0; i < numberOfGroups; i++) {
+        clusters.push([]);
+      }
 
-      // Initialize clusters for each delivery
-      deliveries.forEach(() => clusters.push([]));
+      // First pass: Group reports by township and calculate proximities
+      availableReports.forEach(report => {
+        let assignedToCluster = false;
 
-      // First pass: Ensure each delivery gets at least 4 reports
-      for (let i = 0; i < deliveries.length && availableReports.length > 0; i++) {
-        const center = regionCenters[i];
-
-        // Get 4 closest reports to this region center
-        while (clusters[i].length < 4 && availableReports.length > 0) {
-          // Find closest report to current center
-          let closestReport = availableReports[0];
-          let shortestDistance = calculateDistance(
-            closestReport.lat,
-            closestReport.lng,
-            center.lat,
-            center.lng
-          );
-
-          availableReports.forEach(report => {
+        // Calculate distances to all other reports for proximity stats
+        availableReports.forEach(otherReport => {
+          if (report.id !== otherReport.id) {
             const distance = calculateDistance(
               report.lat,
               report.lng,
-              center.lat,
-              center.lng
+              otherReport.lat,
+              otherReport.lng
             );
-            if (distance < shortestDistance) {
-              shortestDistance = distance;
-              closestReport = report;
-            }
-          });
-
-          // Add closest report to cluster
-          clusters[i].push(closestReport);
-          availableReports = availableReports.filter(r => r.id !== closestReport.id);
-        }
-      }
-
-      // Second pass: Distribute any remaining reports to nearest clusters
-      while (availableReports.length > 0) {
-        const report = availableReports[0];
-        let nearestClusterIndex = 0;
-        let shortestDistance = Infinity;
-
-        regionCenters.forEach((center, index) => {
-          if (index >= clusters.length) return;
-
-          const distance = calculateDistance(
-            report.lat,
-            report.lng,
-            center.lat,
-            center.lng
-          );
-
-          if (distance < shortestDistance) {
-            shortestDistance = distance;
-            nearestClusterIndex = index;
+            proximityData.min = Math.min(proximityData.min, distance);
+            proximityData.max = Math.max(proximityData.max, distance);
+            totalDistances += distance;
+            distanceCount++;
           }
         });
 
-        clusters[nearestClusterIndex].push(report);
-        availableReports = availableReports.filter(r => r.id !== report.id);
-      }
+        // Township grouping logic
+        if (location_gp1.includes(report.township)) {
+          clusters[0].push(report);
+          assignedToCluster = true;
+        } else if (location_gp2.includes(report.township)) {
+          clusters[1].push(report);
+          assignedToCluster = true;
+        } else if (location_gp3.includes(report.township)) {
+          clusters[2].push(report);
+          assignedToCluster = true;
+        } else if (location_gp4.includes(report.township)) {
+          clusters[3].push(report);
+          assignedToCluster = true;
+        }
+
+        // Fallback to nearest delivery if no township match
+        if (!assignedToCluster) {
+          let shortestDistance = Infinity;
+          let nearestClusterIndex = 0;
+
+          deliveries.forEach((delivery, index) => {
+            if (index >= numberOfGroups) return;
+            const distance = calculateDistance(
+              delivery.lat,
+              delivery.lng,
+              report.lat,
+              report.lng
+            );
+            if (distance < shortestDistance) {
+              shortestDistance = distance;
+              nearestClusterIndex = index;
+            }
+          });
+
+          clusters[nearestClusterIndex].push(report);
+        }
+      });
 
       // Calculate routes for each cluster in parallel
       const routePromises = clusters.map(async (cluster, index) => {
@@ -291,6 +310,15 @@ const MapView = () => {
       setDeliveryRoutes(deliveryRoutesMap);
       setRouteInfos(routeInformation);
       setIsInfoMinimized(false);
+
+      const endTime = performance.now();
+      proximityData.avg = totalDistances / distanceCount;
+
+      setAlgorithmStats({
+        timeComplexity: `O(n²) - where n is number of delivery locations`,
+        executionTime: Math.round(endTime - startTime),
+        proximityStats: `Min: ${proximityData.min.toFixed(2)}km, Max: ${proximityData.max.toFixed(2)}km, Avg: ${proximityData.avg.toFixed(2)}km`
+      });
 
     } catch (error) {
       console.error('Failed to calculate delivery routes:', error);
@@ -728,6 +756,28 @@ const MapView = () => {
           }}
         >
           <strong>Total Route Time:</strong> {totalTravelTime} minutes
+        </div>
+      )}
+
+      {/* Algorithm Stats Display */}
+      {algorithmStats.executionTime > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '20px',
+            backgroundColor: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+            maxWidth: '300px'
+          }}
+        >
+          <h4 style={{ margin: '0 0 5px 0' }}>Algorithm Statistics:</h4>
+          <p style={{ margin: '2px 0' }}><strong>Time Complexity:</strong> {algorithmStats.timeComplexity}</p>
+          <p style={{ margin: '2px 0' }}><strong>Execution Time:</strong> {algorithmStats.executionTime}ms</p>
+          <p style={{ margin: '2px 0' }}><strong>Proximity Stats:</strong> {algorithmStats.proximityStats}</p>
         </div>
       )}
 
