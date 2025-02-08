@@ -1,0 +1,83 @@
+/* Auth Container */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #e6e1ec, #324971);
+  }
+  
+  /* Auth Box */
+  .auth-box {
+    background: white;
+    padding: 3rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  
+  .auth-box h2 {
+    margin-bottom: 1.5rem;
+    color: #333;
+  }
+  
+  /* Form Group */
+  .form-group {
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+  }
+  
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+  }
+  
+  /* Auth Button */
+  .auth-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: #2575fc;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .auth-button:hover {
+    background: #1a5bbf;
+  }
+  
+  /* Toggle Text */
+  .toggle-text {
+    margin-top: 1rem;
+    color: #555;
+  }
+  
+  .toggle-link {
+    color: #2575fc;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  
+  .toggle-link:hover {
+    color: #1a5bbf;
+  }
+  
+  /* Error Message */
+  .error-message {
+    color: #ff4444;
+    margin-bottom: 1rem;
+  }

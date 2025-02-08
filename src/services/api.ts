@@ -1,4 +1,5 @@
 import axios from 'axios';
+// import { Townships } from "../constants/townships"; 
 
 const API_BASE = 'http://localhost:3001';
 
@@ -20,6 +21,18 @@ export interface Shelter {
   contact: string;
 }
 
+export interface Delivery {
+  id: number;
+  lat: number;
+  lng: number;
+  shelterId: number;
+  invoiceNum: number[];
+  status: string;
+  shopName: string[];
+  driverName: string;
+  driverContact: string;
+}
+
 export const api = {
   // Reports
   getReports: () => axios.get<Report[]>(`${API_BASE}/reports`),
@@ -31,6 +44,10 @@ export const api = {
   getShelters: () => axios.get<Shelter[]>(`${API_BASE}/shelters`),
   submitShelter: (shelter: Shelter) => axios.post<Shelter>(`${API_BASE}/shelters`, shelter),
 
-  // Notifications
-  getNotifications: () => axios.get(`${API_BASE}/notifications`),
+  // Deliveries
+  getDeliveries: () => axios.get<Delivery[]>(`${API_BASE}/deliveries`),
+  submitDelivery: (delivery: Delivery) =>
+    axios.post<Delivery>(`${API_BASE}/deliveries`, delivery),
+  updateDelivery: (id: number, status: string) =>
+    axios.patch(`${API_BASE}/deliveries/${id}`, { status }),
 };
