@@ -1,6 +1,9 @@
 # Project Overview
 
-This project is currently under development, and the Spring Boot backend has not yet been implemented. To enable frontend development and testing, a mock server has been integrated into the frontend.
+# Project Overview
+
+This project is a comprehensive map-based delivery management system that provides real-time tracking and route optimization capabilities. It enables organizations to efficiently monitor deliveries, streamline logistics operations, and enhance decision-making through automated processes. The system significantly reduces human errors and manual interventions while improving overall operational efficiency.
+
 
 ## Mock Backend
 
