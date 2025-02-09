@@ -81,16 +81,123 @@ const MapView = () => {
   const [routeInfos, setRouteInfos] = useState<RouteInfo[]>([]);
   const [isInfoMinimized, setIsInfoMinimized] = useState(false);
 
+  // filtering invoice number
+  const [filteredDeliveryId, setFilteredDeliveryId] = useState<number | null>(null);
+
   // Add new state for time complexity
   const [algorithmStats, setAlgorithmStats] = useState<{
     timeComplexity: string;
     executionTime: number;
-    proximityStats: string;
+    overallProximityStats: string;
+    routeProximityStats: { [key: number]: string };
   }>({
     timeComplexity: '',
     executionTime: 0,
-    proximityStats: ''
+    overallProximityStats: '',
+    routeProximityStats: {}
   });
+
+  // Add new state for algorithm stats minimized
+  const [isAlgoStatsMinimized, setIsAlgoStatsMinimized] = useState(false);
+
+  // Add new state for selected driver  
+  const [selectedDriverName, setSelectedDriverName] = useState<string | null>(null);
+
+  // Add event listener for invoice search
+  useEffect(() => {
+    const handleInvoiceSearch = (event: CustomEvent) => {
+      const searchedInvoice = event.detail.invoiceNumber;
+
+      // Find delivery that contains the searched invoice
+      const matchingDelivery = deliveries.find(delivery =>
+        delivery.invoiceNum.includes(searchedInvoice)
+      );
+
+      if (matchingDelivery) {
+        setFilteredDeliveryId(matchingDelivery.id);
+        // Calculate route only for the matching delivery
+        calculateFilteredDeliveryRoute(matchingDelivery);
+      } else {
+        setFilteredDeliveryId(null);
+        setDeliveryRoutes({});
+        setRouteInfos([]);
+        alert('No delivery found with this invoice number');
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('invoiceSearch', handleInvoiceSearch as EventListener);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('invoiceSearch', handleInvoiceSearch as EventListener);
+    };
+  }, [deliveries]); // Add any other dependencies if needed
+
+  // Add new function to calculate route for filtered delivery
+  const calculateFilteredDeliveryRoute = async (delivery: Delivery) => {
+    setIsLoading(true);
+    try {
+      // Filter reports for this delivery's township group
+      const relevantReports = reports.filter(report => {
+        // Use your existing township grouping logic here
+        const deliveryGroup = getDeliveryGroup(delivery.id);
+        const reportGroup = getReportGroup(report.township);
+        return deliveryGroup === reportGroup;
+      });
+
+      if (relevantReports.length === 0) {
+        setDeliveryRoutes({});
+        setRouteInfos([]);
+        setIsLoading(false);
+        return;
+      }
+
+      let coordinates = `${delivery.lng},${delivery.lat}`;
+      relevantReports.forEach(report => {
+        coordinates += `;${report.lng},${report.lat}`;
+      });
+
+      const response = await axios.get(
+        `https://router.project-osrm.org/trip/v1/driving/${coordinates}?roundtrip=true&source=first`
+      );
+
+      if (response.data.trips && response.data.trips.length > 0) {
+        const route = decodePolyline(response.data.trips[0].geometry);
+        const routeInfo = {
+          deliveryId: delivery.id,
+          shopName: delivery.shopName[0],
+          totalTime: Math.round(response.data.trips[0].duration / 60),
+          reports: relevantReports.map(r => ({
+            description: r.description,
+            distance: calculateDistance(delivery.lat, delivery.lng, r.lat, r.lng)
+          }))
+        };
+
+        setDeliveryRoutes({ [delivery.id]: route });
+        setRouteInfos([routeInfo]);
+      }
+    } catch (error) {
+      console.error('Failed to calculate filtered delivery route:', error);
+      alert('Failed to calculate delivery route. Please try again.');
+    }
+    setIsLoading(false);
+  };
+
+  // Helper function to determine delivery group
+  const getDeliveryGroup = (deliveryId: number): number => {
+    // Return 0-3 based on your existing grouping logic
+    return (deliveryId - 1) % 4;
+  };
+
+  // Helper function to determine report group
+  const getReportGroup = (township: string): number => {
+    if (location_gp1.includes(township)) return 0;
+    if (location_gp2.includes(township)) return 1;
+    if (location_gp3.includes(township)) return 2;
+    if (location_gp4.includes(township)) return 3;
+    return 0; // Default group
+  };
 
   // Fetch initial data
   useEffect(() => {
@@ -99,18 +206,58 @@ const MapView = () => {
     api.getDeliveries().then((res) => setDeliveries(res.data));
   }, []);
 
-  // Add new function to calculate optimized route
+  // Add event listener for driver selection
+  useEffect(() => {
+    const handleDriverSelect = (event: CustomEvent) => {
+      const driverName = event.detail.driverName;
+      setSelectedDriverName(driverName || null);
 
+      // Clear existing routes when driver changes
+      setRouteSegments([]);
+      setOptimizedWaypoints([]);
+      setTotalTravelTime(null);
+    };
+
+    window.addEventListener('driverSelect', handleDriverSelect as EventListener);
+
+    return () => {
+      window.removeEventListener('driverSelect', handleDriverSelect as EventListener);
+    };
+  }, []);
+
+  // Modify calculateOptimizedRoute to filter by selected driver
   const calculateOptimizedRoute = async () => {
-    if (!userLocation || reports.length === 0) {
-      alert('Please enable location services and ensure there are reports to visit.');
+    if (!userLocation) {
+      alert('Please enable location services first.');
+      return;
+    }
+
+    // Find the selected driver's delivery
+    const driverDelivery = deliveries.find(d => d.driverName === selectedDriverName);
+
+    if (!selectedDriverName || !driverDelivery) {
+      alert('Please select a driver first.');
       return;
     }
 
     setIsLoading(true);
     try {
+      // Filter reports based on the driver's delivery townships
+      const driverReports = reports.filter(report => {
+        const deliveryGroup = getDeliveryGroup(driverDelivery.id);
+        const reportGroup = getReportGroup(report.township);
+        return deliveryGroup === reportGroup;
+      });
+
+      if (driverReports.length === 0) {
+        alert('No delivery points found for this driver.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Start from driver's current location (userLocation)
       let coordinates = `${userLocation[1]},${userLocation[0]}`;
-      reports.forEach(report => {
+      driverReports.forEach(report => {
         coordinates += `;${report.lng},${report.lat}`;
       });
 
@@ -131,7 +278,6 @@ const MapView = () => {
           const start = sortedWaypoints[i];
           const end = sortedWaypoints[i + 1];
 
-          // Get detailed route between consecutive points
           const routeResponse = await axios.get(
             `https://router.project-osrm.org/route/v1/driving/${start.location[0]},${start.location[1]};${end.location[0]},${end.location[1]}?overview=full`
           );
@@ -142,18 +288,17 @@ const MapView = () => {
           }
         }
 
-
         setRouteSegments(segments);
         setTotalTravelTime(Math.round(trips[0].duration / 60));
 
         // Create waypoint order message
         const waypointOrder = sortedWaypoints.map((wp: any, index: number) => {
           if (index === 0) return "Driver Start";
-          const report = reports[index - 1];
+          const report = driverReports[index - 1];
           return `Stop ${index}: ${report.description.substring(0, 20)}...`;
         });
 
-        alert(`Optimized Route Created!\n\nTotal travel time: ${Math.round(trips[0].duration / 60)} minutes\n\nRoute order:\n${waypointOrder.join('\n')}`);
+        alert(`Optimized Route Created for ${selectedDriverName}!\n\nTotal travel time: ${Math.round(trips[0].duration / 60)} minutes\n\nRoute order:\n${waypointOrder.join('\n')}`);
       }
     } catch (error) {
       console.error('Failed to calculate optimized route:', error);
@@ -182,149 +327,196 @@ const MapView = () => {
   };
 
   const calculateDeliveryRoutes = async () => {
-    const startTime = performance.now();
-    setIsLoading(true);
-    try {
-      let availableReports = [...reports];
-      const routeInformation: RouteInfo[] = [];
-      const clusters: Array<Report[]> = [];
-      const proximityData: { min: number; max: number; avg: number } = {
-        min: Infinity,
-        max: 0,
-        avg: 0
-      };
-      let totalDistances = 0;
-      let distanceCount = 0;
-
-      // Initialize clusters
-      const numberOfGroups = 4;
-      for (let i = 0; i < numberOfGroups; i++) {
-        clusters.push([]);
+    if (filteredDeliveryId) {
+      const delivery = deliveries.find(d => d.id === filteredDeliveryId);
+      if (delivery) {
+        calculateFilteredDeliveryRoute(delivery);
       }
+    } else {
+      const startTime = performance.now();
+      setIsLoading(true);
+      try {
+        let availableReports = [...reports];
+        const routeInformation: RouteInfo[] = [];
+        const clusters: Array<Report[]> = [];
+        const overallProximityData = { min: Infinity, max: 0, avg: 0 };
+        let overallTotalDistances = 0;
+        let overallDistanceCount = 0;
 
-      // First pass: Group reports by township and calculate proximities
-      availableReports.forEach(report => {
-        let assignedToCluster = false;
+        // Track per-route proximity data
+        const routeProximityData: { [key: number]: { min: number; max: number; avg: number; total: number; count: number } } = {};
 
-        // Calculate distances to all other reports for proximity stats
-        availableReports.forEach(otherReport => {
-          if (report.id !== otherReport.id) {
-            const distance = calculateDistance(
-              report.lat,
-              report.lng,
-              otherReport.lat,
-              otherReport.lng
-            );
-            proximityData.min = Math.min(proximityData.min, distance);
-            proximityData.max = Math.max(proximityData.max, distance);
-            totalDistances += distance;
-            distanceCount++;
-          }
-        });
-
-        // Township grouping logic
-        if (location_gp1.includes(report.township)) {
-          clusters[0].push(report);
-          assignedToCluster = true;
-        } else if (location_gp2.includes(report.township)) {
-          clusters[1].push(report);
-          assignedToCluster = true;
-        } else if (location_gp3.includes(report.township)) {
-          clusters[2].push(report);
-          assignedToCluster = true;
-        } else if (location_gp4.includes(report.township)) {
-          clusters[3].push(report);
-          assignedToCluster = true;
+        // Initialize clusters
+        const numberOfGroups = 4;
+        for (let i = 0; i < numberOfGroups; i++) {
+          clusters.push([]);
         }
 
-        // Fallback to nearest delivery if no township match
-        if (!assignedToCluster) {
-          let shortestDistance = Infinity;
-          let nearestClusterIndex = 0;
+        // First pass: Group reports by township and calculate proximities
+        availableReports.forEach(report => {
+          let assignedToCluster = false;
 
-          deliveries.forEach((delivery, index) => {
-            if (index >= numberOfGroups) return;
-            const distance = calculateDistance(
-              delivery.lat,
-              delivery.lng,
-              report.lat,
-              report.lng
-            );
-            if (distance < shortestDistance) {
-              shortestDistance = distance;
-              nearestClusterIndex = index;
+          // Calculate overall distances
+          availableReports.forEach(otherReport => {
+            if (report.id !== otherReport.id) {
+              const distance = calculateDistance(
+                report.lat, report.lng,
+                otherReport.lat, otherReport.lng
+              );
+              overallProximityData.min = Math.min(overallProximityData.min, distance);
+              overallProximityData.max = Math.max(overallProximityData.max, distance);
+              overallTotalDistances += distance;
+              overallDistanceCount++;
             }
           });
 
-          clusters[nearestClusterIndex].push(report);
-        }
-      });
+          // Township grouping logic
+          if (location_gp1.includes(report.township)) {
+            clusters[0].push(report);
+            assignedToCluster = true;
+          } else if (location_gp2.includes(report.township)) {
+            clusters[1].push(report);
+            assignedToCluster = true;
+          } else if (location_gp3.includes(report.township)) {
+            clusters[2].push(report);
+            assignedToCluster = true;
+          } else if (location_gp4.includes(report.township)) {
+            clusters[3].push(report);
+            assignedToCluster = true;
+          }
 
-      // Calculate routes for each cluster in parallel
-      const routePromises = clusters.map(async (cluster, index) => {
-        if (!cluster.length || index >= deliveries.length) return null;
-        const delivery = deliveries[index];
+          // Fallback to nearest delivery if no township match
+          if (!assignedToCluster) {
+            let shortestDistance = Infinity;
+            let nearestClusterIndex = 0;
 
-        let coordinates = `${delivery.lng},${delivery.lat}`;
-        cluster.forEach(report => {
-          coordinates += `;${report.lng},${report.lat}`;
+            deliveries.forEach((delivery, index) => {
+              if (index >= numberOfGroups) return;
+              const distance = calculateDistance(
+                delivery.lat,
+                delivery.lng,
+                report.lat,
+                report.lng
+              );
+              if (distance < shortestDistance) {
+                shortestDistance = distance;
+                nearestClusterIndex = index;
+              }
+            });
+
+            clusters[nearestClusterIndex].push(report);
+          }
         });
 
-        try {
-          const response = await axios.get(
-            `https://router.project-osrm.org/trip/v1/driving/${coordinates}?roundtrip=true&source=first`
-          );
-
-          if (response.data.trips && response.data.trips.length > 0) {
-            return {
-              deliveryId: delivery.id,
-              route: decodePolyline(response.data.trips[0].geometry),
-              info: {
-                deliveryId: delivery.id,
-                shopName: delivery.shopName[0],
-                totalTime: Math.round(response.data.trips[0].duration / 60),
-                reports: cluster.map(r => ({
-                  description: r.description,
-                  distance: calculateDistance(delivery.lat, delivery.lng, r.lat, r.lng)
-                }))
-              }
+        // Calculate per-route proximities after clusters are formed
+        clusters.forEach((cluster, index) => {
+          if (cluster.length > 0 && index < deliveries.length) {
+            routeProximityData[deliveries[index].id] = {
+              min: Infinity,
+              max: 0,
+              avg: 0,
+              total: 0,
+              count: 0
             };
+
+            cluster.forEach((report, i) => {
+              cluster.forEach((otherReport, j) => {
+                if (i !== j) {
+                  const distance = calculateDistance(
+                    report.lat, report.lng,
+                    otherReport.lat, otherReport.lng
+                  );
+                  const routeData = routeProximityData[deliveries[index].id];
+                  routeData.min = Math.min(routeData.min, distance);
+                  routeData.max = Math.max(routeData.max, distance);
+                  routeData.total += distance;
+                  routeData.count++;
+                }
+              });
+            });
+
+            // Calculate average for this route
+            const routeData = routeProximityData[deliveries[index].id];
+            if (routeData.count > 0) {
+              routeData.avg = routeData.total / routeData.count;
+            }
           }
-        } catch (error) {
-          console.error(`Failed to calculate route for delivery ${delivery.id}:`, error);
-          return null;
-        }
-      });
+        });
 
-      // Wait for all route calculations to complete
-      const results = await Promise.all(routePromises);
-      const deliveryRoutesMap: { [key: number]: [number, number][] } = {};
+        // Calculate routes for each cluster in parallel
+        const routePromises = clusters.map(async (cluster, index) => {
+          if (!cluster.length || index >= deliveries.length) return null;
+          const delivery = deliveries[index];
 
-      results.forEach(result => {
-        if (result) {
-          deliveryRoutesMap[result.deliveryId] = result.route;
-          routeInformation.push(result.info);
-        }
-      });
+          let coordinates = `${delivery.lng},${delivery.lat}`;
+          cluster.forEach(report => {
+            coordinates += `;${report.lng},${report.lat}`;
+          });
 
-      setDeliveryRoutes(deliveryRoutesMap);
-      setRouteInfos(routeInformation);
-      setIsInfoMinimized(false);
+          try {
+            const response = await axios.get(
+              `https://router.project-osrm.org/trip/v1/driving/${coordinates}?roundtrip=true&source=first`
+            );
 
-      const endTime = performance.now();
-      proximityData.avg = totalDistances / distanceCount;
+            if (response.data.trips && response.data.trips.length > 0) {
+              return {
+                deliveryId: delivery.id,
+                route: decodePolyline(response.data.trips[0].geometry),
+                info: {
+                  deliveryId: delivery.id,
+                  shopName: delivery.shopName[0],
+                  totalTime: Math.round(response.data.trips[0].duration / 60),
+                  reports: cluster.map(r => ({
+                    description: r.description,
+                    distance: calculateDistance(delivery.lat, delivery.lng, r.lat, r.lng)
+                  }))
+                }
+              };
+            }
+          } catch (error) {
+            console.error(`Failed to calculate route for delivery ${delivery.id}:`, error);
+            return null;
+          }
+        });
 
-      setAlgorithmStats({
-        timeComplexity: `O(n²) - where n is number of delivery locations`,
-        executionTime: Math.round(endTime - startTime),
-        proximityStats: `Min: ${proximityData.min.toFixed(2)}km, Max: ${proximityData.max.toFixed(2)}km, Avg: ${proximityData.avg.toFixed(2)}km`
-      });
+        // Wait for all route calculations to complete
+        const results = await Promise.all(routePromises);
+        const deliveryRoutesMap: { [key: number]: [number, number][] } = {};
 
-    } catch (error) {
-      console.error('Failed to calculate delivery routes:', error);
-      alert('Failed to calculate delivery routes. Please try again.');
+        results.forEach(result => {
+          if (result) {
+            deliveryRoutesMap[result.deliveryId] = result.route;
+            routeInformation.push(result.info);
+          }
+        });
+
+        setDeliveryRoutes(deliveryRoutesMap);
+        setRouteInfos(routeInformation);
+        setIsInfoMinimized(false);
+
+        const endTime = performance.now();
+        overallProximityData.avg = overallTotalDistances / overallDistanceCount;
+
+        // Format route-specific proximity stats
+        const routeProximityStats: { [key: number]: string } = {};
+        Object.entries(routeProximityData).forEach(([deliveryId, data]) => {
+          routeProximityStats[Number(deliveryId)] =
+            `Min: ${data.min.toFixed(2)}km, Max: ${data.max.toFixed(2)}km, Avg: ${data.avg.toFixed(2)}km`;
+        });
+
+        setAlgorithmStats({
+          timeComplexity: `O(n²) - where n is number of delivery locations`,
+          executionTime: Math.round(endTime - startTime),
+          overallProximityStats: `Min: ${overallProximityData.min.toFixed(2)}km, Max: ${overallProximityData.max.toFixed(2)}km, Avg: ${overallProximityData.avg.toFixed(2)}km`,
+          routeProximityStats
+        });
+
+      } catch (error) {
+        console.error('Failed to calculate delivery routes:', error);
+        alert('Failed to calculate delivery routes. Please try again.');
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   // Modified user location handling
@@ -522,6 +714,7 @@ const MapView = () => {
             </button>
           </div>
 
+          {/* Delivery Routes Pop Up */}
           {!isInfoMinimized && (
             <div>
               {routeInfos.map((info) => (
@@ -534,11 +727,21 @@ const MapView = () => {
                     borderRadius: '5px',
                   }}
                 >
-                  <h4 style={{ margin: '0 0 10px 0' }}>
-                    Delivery {info.deliveryId} ({info.shopName})
+                  <h4 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center' }}>
+                    Delivery {info.deliveryId}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '20px',
+                        height: '4px',
+                        marginLeft: '10px',
+                        backgroundColor: `hsl(${(info.deliveryId * 137) % 360}, 70%, 50%)`,
+                        borderRadius: '2px'
+                      }}
+                    />
                   </h4>
                   <p><strong>Total Time:</strong> {info.totalTime} minutes</p>
-                  <p><strong>Assigned Reports:</strong></p>
+                  <p><strong>Assigned Deliveries:</strong></p>
                   <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
                     {info.reports.map((report, index) => (
                       <li key={index}>
@@ -553,7 +756,7 @@ const MapView = () => {
 
           {isInfoMinimized && (
             <div style={{ textAlign: 'center' }}>
-              📋
+              📊
             </div>
           )}
         </div>
@@ -765,19 +968,60 @@ const MapView = () => {
           style={{
             position: 'absolute',
             bottom: '20px',
-            left: '20px',
+            left: isAlgoStatsMinimized ? '20px' : '20px',
             backgroundColor: 'white',
-            padding: '10px',
-            borderRadius: '5px',
+            padding: '15px',
+            borderRadius: '8px',
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-            zIndex: 1000,
-            maxWidth: '300px'
+            zIndex: 800,
+            maxWidth: isAlgoStatsMinimized ? '60px' : '350px',
+            maxHeight: isAlgoStatsMinimized ? '60px' : '80vh',
+            overflow: 'auto',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer'
           }}
+          onClick={() => isAlgoStatsMinimized && setIsAlgoStatsMinimized(false)}
         >
-          <h4 style={{ margin: '0 0 5px 0' }}>Algorithm Statistics:</h4>
-          <p style={{ margin: '2px 0' }}><strong>Time Complexity:</strong> {algorithmStats.timeComplexity}</p>
-          <p style={{ margin: '2px 0' }}><strong>Execution Time:</strong> {algorithmStats.executionTime}ms</p>
-          <p style={{ margin: '2px 0' }}><strong>Proximity Stats:</strong> {algorithmStats.proximityStats}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0 }}>Algorithm Statistics</h4>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAlgoStatsMinimized(!isAlgoStatsMinimized);
+              }}
+              style={{
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: '20px',
+                padding: '5px',
+              }}
+            >
+              {isAlgoStatsMinimized ? '🔍' : '➖'}
+            </button>
+          </div>
+
+          {!isAlgoStatsMinimized && (
+            <>
+              <p style={{ margin: '2px 0' }}><strong>Time Complexity:</strong> {algorithmStats.timeComplexity}</p>
+              <p style={{ margin: '2px 0' }}><strong>Execution Time:</strong> {algorithmStats.executionTime}ms</p>
+              <p style={{ margin: '2px 0' }}><strong>Overall Proximity:</strong> {algorithmStats.overallProximityStats}</p>
+              <div style={{ margin: '5px 0' }}>
+                <strong>Route Proximities:</strong>
+                {Object.entries(algorithmStats.routeProximityStats).map(([deliveryId, stats]) => (
+                  <p key={deliveryId} style={{ margin: '2px 0', paddingLeft: '10px', fontSize: '0.9em' }}>
+                    Route {deliveryId}: {stats}
+                  </p>
+                ))}
+              </div>
+            </>
+          )}
+
+          {isAlgoStatsMinimized && (
+            <div style={{ textAlign: 'center' }}>
+              📊
+            </div>
+          )}
         </div>
       )}
 

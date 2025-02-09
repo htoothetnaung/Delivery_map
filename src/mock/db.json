@@ -4,7 +4,7 @@
       "lat": 16.833772777555968,
       "lng": 96.21259689331056,
       "township": "Thingan Kyun",
-      "description": "Test",
+      "description": "Infinity Tech Store",
       "status": "pending",
       "id": 1
     },
@@ -12,32 +12,30 @@
       "lat": 16.843395077873474,
       "lng": 96.15663528442384,
       "township": "Yankin",
-      "description": "Car Accident",
+      "description": "Cloud Connectors",
       "status": "pending",
       "id": 2
     },
     {
       "lat": 16.818980255735205,
       "lng": 96.16573333740236,
-      "description": "Test Issue",
+      "description": "SmartEdge Solutions",
       "township": "Bahan",
       "status": "pending",
-      "pending": "",
       "id": 4
     },
     {
       "lat": 16.848397645843654,
       "lng": 96.09277725219728,
-      "description": "HTY Report\n",
+      "description": "Mega Tech Mart",
       "township": "Hlaing Thar Yar",
       "status": "pending",
-      "pending": "",
       "id": 5
     },
     {
       "lat": 16.795841,
       "lng": 96.159470,
-      "description": "Dagon Center Area",
+      "description": "The Data Den",
       "township": "Bahan",
       "status": "pending",
       "id": 6
@@ -45,7 +43,7 @@
     {
       "lat": 16.827150,
       "lng": 96.127825,
-      "description": "Junction City",
+      "description": "Innovate IT",
       "township": "Kamaryut",
       "status": "pending",
       "id": 7
@@ -53,7 +51,7 @@
     {
       "lat": 16.855897,
       "lng": 96.175512,
-      "description": "Inya Lake Hotel Area",
+      "description": "DigitalHub",
       "township": "South Okkalapa",
       "status": "pending",
       "id": 8
@@ -61,7 +59,7 @@
     {
       "lat": 16.774831,
       "lng": 96.150811,
-      "description": "Latha China Town",
+      "description": "Tech Fusion Store",
       "township": "Latha",
       "status": "pending",
       "id": 9
@@ -69,7 +67,7 @@
     {
       "lat": 16.887091,
       "lng": 96.199270,
-      "description": "8 Mile Junction",
+      "description": "Code& Pixel",
       "township": "North Dagon",
       "status": "pending",
       "id": 10
@@ -77,7 +75,7 @@
     {
       "lat": 16.807927,
       "lng": 96.189657,
-      "description": "Tarmwe Plaza",
+      "description": "Binary Boutique",
       "township": "Tarmwe",
       "status": "pending",
       "id": 11
@@ -85,7 +83,7 @@
     {
       "lat": 16.866069,
       "lng": 96.163564,
-      "description": "Sedona Hotel",
+      "description": "NextGen Gadgets",
       "township": "South Okkalapa",
       "status": "pending",
       "id": 12
@@ -93,7 +91,7 @@
     {
       "lat": 16.784563,
       "lng": 96.172147,
-      "description": "Capital Hypermarket",
+      "description": "Circuit City Pro",
       "township": "Mingalar Taung Nyunt",
       "status": "pending",
       "id": 13
@@ -101,7 +99,7 @@
     {
       "lat": 16.828671,
       "lng": 96.141891,
-      "description": "Yangon Central Railway",
+      "description": "GigaWorld Electronics",
       "township": "Hlaing",
       "status": "pending",
       "id": 14
@@ -109,7 +107,7 @@
     {
       "lat": 16.851123,
       "lng": 96.214174,
-      "description": "Myanmar Plaza",
+      "description": "CyberCore",
       "township": "South Dagon",
       "status": "pending",
       "id": 15
@@ -117,7 +115,7 @@
     {
       "lat": 16.838772,
       "lng": 96.132584,
-      "description": "Bogyoke Market",
+      "description": "Hardware Haven",
       "township": "Hlaing",
       "status": "pending",
       "id": 16
@@ -125,7 +123,7 @@
     {
       "lat": 16.775531,
       "lng": 96.161753,
-      "description": "Ocean Supercenter",
+      "description": "PC Planet",
       "township": "Kyauktada",
       "status": "pending",
       "id": 17
@@ -133,7 +131,7 @@
     {
       "lat": 16.897241,
       "lng": 96.199521,
-      "description": "Mingalardon",
+      "description": "Byte Bazaar",
       "township": "East Dagon",
       "status": "pending",
       "id": 18
@@ -141,7 +139,7 @@
     {
       "lat": 16.816952,
       "lng": 96.129873,
-      "description": "Chinatown Area",
+      "description": "Future Bytes",
       "township": "Kamaryut",
       "status": "pending",
       "id": 19
@@ -149,7 +147,7 @@
     {
       "lat": 16.846123,
       "lng": 96.192456,
-      "description": "Golden Valley",
+      "description": "IT Essentials Co.",
       "township": "South Okkalapa",
       "status": "pending",
       "id": 20
