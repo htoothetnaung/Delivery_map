@@ -6,6 +6,7 @@
       "township": "Thingan Kyun",
       "description": "Infinity Tech Store",
       "status": "pending",
+      "invoice_num": 7126,
       "id": 1
     },
     {
@@ -14,142 +15,169 @@
       "township": "Yankin",
       "description": "Cloud Connectors",
       "status": "pending",
+      "invoice_num": 7128,
       "id": 2
+    },
+    {
+      "lat": 16.818910255735205,
+      "lng": 96.165733338301920,
+      "description": "SmartEdge Solutions",
+      "township": "Bahan",
+      "status": "pending",
+      "invoice_num": 7142,
+      "id": 3
     },
     {
       "lat": 16.818980255735205,
       "lng": 96.16573333740236,
-      "description": "SmartEdge Solutions",
+      "description": "Mega Tech Mart\n",
       "township": "Bahan",
       "status": "pending",
+      "invoice_num": 7136,
       "id": 4
     },
     {
       "lat": 16.848397645843654,
       "lng": 96.09277725219728,
-      "description": "Mega Tech Mart",
+      "description": "The Data Den",
       "township": "Hlaing Thar Yar",
       "status": "pending",
+      "invoice_num": 7129,
       "id": 5
     },
     {
       "lat": 16.795841,
       "lng": 96.159470,
-      "description": "The Data Den",
+      "description": "Innovate IT",
       "township": "Bahan",
       "status": "pending",
+      "invoice_num": 7130,
       "id": 6
     },
     {
       "lat": 16.827150,
       "lng": 96.127825,
-      "description": "Innovate IT",
+      "description": "DigitalHub",
       "township": "Kamaryut",
       "status": "pending",
+      "invoice_num": 7143,
       "id": 7
     },
     {
       "lat": 16.855897,
       "lng": 96.175512,
-      "description": "DigitalHub",
+      "description": "Tech Fusion Store",
       "township": "South Okkalapa",
       "status": "pending",
+      "invoice_num": 7131,
       "id": 8
     },
     {
       "lat": 16.774831,
       "lng": 96.150811,
-      "description": "Tech Fusion Store",
+      "description": "Code&Pixel",
       "township": "Latha",
       "status": "pending",
+      "invoice_num": 7127,
       "id": 9
     },
     {
       "lat": 16.887091,
       "lng": 96.199270,
-      "description": "Code& Pixel",
+      "description": "Binary Boutique",
       "township": "North Dagon",
       "status": "pending",
+      "invoice_num": 7133,
       "id": 10
     },
     {
       "lat": 16.807927,
       "lng": 96.189657,
-      "description": "Binary Boutique",
+      "description": "NextGen Gadgets",
       "township": "Tarmwe",
       "status": "pending",
+      "invoice_num": 7144,
       "id": 11
     },
     {
       "lat": 16.866069,
       "lng": 96.163564,
-      "description": "NextGen Gadgets",
+      "description": "Circuit City Pro",
       "township": "South Okkalapa",
       "status": "pending",
+      "invoice_num": 7134,
       "id": 12
     },
     {
       "lat": 16.784563,
       "lng": 96.172147,
-      "description": "Circuit City Pro",
+      "description": "GigaWorld Electronics",
       "township": "Mingalar Taung Nyunt",
       "status": "pending",
+      "invoice_num": 7135,
       "id": 13
     },
     {
       "lat": 16.828671,
       "lng": 96.141891,
-      "description": "GigaWorld Electronics",
+      "description": "CyberCore",
       "township": "Hlaing",
       "status": "pending",
+      "invoice_num": 7137,
       "id": 14
     },
     {
       "lat": 16.851123,
       "lng": 96.214174,
-      "description": "CyberCore",
+      "description": "Hardware Haven",
       "township": "South Dagon",
       "status": "pending",
+      "invoice_num": 7132,
       "id": 15
     },
     {
       "lat": 16.838772,
       "lng": 96.132584,
-      "description": "Hardware Haven",
+      "description": "PC Planet",
       "township": "Hlaing",
       "status": "pending",
+      "invoice_num": 7138,
       "id": 16
     },
     {
       "lat": 16.775531,
       "lng": 96.161753,
-      "description": "PC Planet",
+      "description": "Byte Bazaar",
       "township": "Kyauktada",
       "status": "pending",
+      "invoice_num": 7139,
       "id": 17
     },
     {
       "lat": 16.897241,
       "lng": 96.199521,
-      "description": "Byte Bazaar",
+      "description": "Future Bytes",
       "township": "East Dagon",
       "status": "pending",
+      "invoice_num": 7140,
       "id": 18
     },
     {
       "lat": 16.816952,
       "lng": 96.129873,
-      "description": "Future Bytes",
+      "description": "IT Essentials Co.",
       "township": "Kamaryut",
       "status": "pending",
+      "invoice_num": 7141,
       "id": 19
     },
     {
       "lat": 16.846123,
       "lng": 96.192456,
-      "description": "IT Essentials Co.",
+      "description": "TechNest",
       "township": "South Okkalapa",
       "status": "pending",
+      "invoice_num": 7145,
       "id": 20
     }
   ],
