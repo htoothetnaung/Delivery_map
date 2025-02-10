@@ -114,6 +114,10 @@ const MapView = () => {
   // Add new state for animation
   const [animationRoute, setAnimationRoute] = useState<[number, number][]>([]);
 
+  // Add new state for driver card
+  const [showDriverCard, setShowDriverCard] = useState(false);
+  const [isDriverCardMinimized, setIsDriverCardMinimized] = useState(false);
+
   // Add event listener for invoice search
   useEffect(() => {
     const handleInvoiceSearch = (event: CustomEvent) => {
@@ -236,14 +240,13 @@ const MapView = () => {
     };
   }, []);
 
-  // Modify calculateOptimizedRoute to filter by selected driver
+  // Modify calculateOptimizedRoute to show driver card
   const calculateOptimizedRoute = async () => {
     if (!userLocation) {
       alert('Please enable location services first.');
       return;
     }
 
-    // Find the selected driver's delivery
     const driverDelivery = deliveries.find(d => d.driverName === selectedDriverName);
 
     if (!selectedDriverName || !driverDelivery) {
@@ -315,6 +318,8 @@ const MapView = () => {
         });
 
         alert(`Optimized Route Created for ${selectedDriverName}!\n\nTotal travel time: ${Math.round(trips[0].duration / 60)} minutes\n\nRoute order:\n${waypointOrder.join('\n')}`);
+
+        setShowDriverCard(true); // Show driver card after successful optimization
       }
     } catch (error) {
       console.error('Failed to calculate optimized route:', error);
@@ -1049,7 +1054,79 @@ const MapView = () => {
         </div>
       )}
 
+      {/* Add driver card component */}
+      {showDriverCard && (
+        <div
+          style={{
+            position: 'absolute',
+            left: isDriverCardMinimized ? '20px' : '50px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            backgroundColor: 'white',
+            padding: '15px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            maxWidth: isDriverCardMinimized ? '60px' : '300px',
+            maxHeight: isDriverCardMinimized ? '60px' : '80vh',
+            overflow: 'auto',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+          }}
+          onClick={() => isDriverCardMinimized && setIsDriverCardMinimized(false)}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ margin: 0 }}>Driver Details</h3>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDriverCardMinimized(!isDriverCardMinimized);
+              }}
+              style={{
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: '20px',
+                padding: '5px',
+              }}
+            >
+              {isDriverCardMinimized ? '🔍' : '➖'}
+            </button>
+          </div>
 
+          {!isDriverCardMinimized && (
+            <div>
+              {/* Driver Info */}
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
+                <p style={{ margin: '5px 0' }}><strong>Driver:</strong> {selectedDriverName}</p>
+                <p style={{ margin: '5px 0' }}><strong>Contact:</strong> {deliveries.find(d => d.driverName === selectedDriverName)?.driverContact}</p>
+              </div>
+
+              {/* Delivery Points */}
+              <div>
+                <p style={{ margin: '5px 0' }}><strong>Delivery Route:</strong></p>
+                <ol style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                  {optimizedWaypoints.map((waypoint: any, index: number) => {
+                    if (index === 0) return null; // Skip driver's starting point
+                    const report = reports[waypoint.waypoint_index - 1];
+                    return (
+                      <li key={index} style={{ margin: '5px 0' }}>
+                        {report?.description || 'Unknown location'}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {isDriverCardMinimized && (
+            <div style={{ textAlign: 'center' }}>
+              🚗
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
