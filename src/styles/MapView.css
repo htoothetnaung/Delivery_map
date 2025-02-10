@@ -1,0 +1,17 @@
+.car-marker {
+    background: transparent;
+    border: none;
+}
+
+.car-marker img {
+    transition: transform 0.1s linear;
+}
+
+.moving-marker {
+    background: transparent;
+    border: none;
+}
+
+.moving-marker img {
+    transition: transform 0.1s linear;
+}

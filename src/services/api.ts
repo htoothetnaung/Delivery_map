@@ -14,6 +14,7 @@ export interface Report {
   petType: 'lost' | 'injured';
   status: string;
   pending: string;
+  invoice_num: number;
 }
 
 export interface Shelter {

@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api, Report, Shelter, Delivery } from '../services/api';
 import axios from 'axios';
 import L from 'leaflet';
 import { YANGON_TOWNSHIPS } from '../constants/townships';
+import '../styles/MapView.css'
+import carIcon from '../assets/car.png';
 
 
 // Fix Leaflet marker icons
@@ -37,6 +39,12 @@ const PurpleIcon = L.icon({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
+});
+
+const customDriverIcon = L.icon({
+  iconUrl: "/truck-icon.png", // Use your own truck image
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
@@ -102,6 +110,9 @@ const MapView = () => {
 
   // Add new state for selected driver  
   const [selectedDriverName, setSelectedDriverName] = useState<string | null>(null);
+
+  // Add new state for animation
+  const [animationRoute, setAnimationRoute] = useState<[number, number][]>([]);
 
   // Add event listener for invoice search
   useEffect(() => {
@@ -272,8 +283,9 @@ const MapView = () => {
         const sortedWaypoints = waypoints.sort((a: any, b: any) => a.waypoint_index - b.waypoint_index);
         setOptimizedWaypoints(sortedWaypoints);
 
-        // Calculate route segments between consecutive waypoints
         const segments: Array<[number, number][]> = [];
+        const allPositions: [number, number][] = [userLocation];
+
         for (let i = 0; i < sortedWaypoints.length - 1; i++) {
           const start = sortedWaypoints[i];
           const end = sortedWaypoints[i + 1];
@@ -285,11 +297,15 @@ const MapView = () => {
           if (routeResponse.data.routes[0]) {
             const decodedSegment = decodePolyline(routeResponse.data.routes[0].geometry);
             segments.push(decodedSegment);
+            allPositions.push(...decodedSegment);
           }
         }
 
         setRouteSegments(segments);
         setTotalTravelTime(Math.round(trips[0].duration / 60));
+
+        // Store all positions for animation
+        setAnimationRoute(allPositions);
 
         // Create waypoint order message
         const waypointOrder = sortedWaypoints.map((wp: any, index: number) => {
@@ -579,47 +595,40 @@ const MapView = () => {
       setTravelTime(null);
     }
   };
-  // Updated polyline decoder function
+  // Updated decodePolyline function
   const decodePolyline = (encoded: string): [number, number][] => {
-    const poly: [number, number][] = [];
-    let index = 0;
-    let lat = 0;
-    let lng = 0;
-    const len = encoded.length;
-
-    while (index < len) {
+    let index = 0, lat = 0, lng = 0;
+    const coordinates: [number, number][] = [];
+    while (index < encoded.length) {
       let shift = 0;
       let result = 0;
-
-      // Decode latitude
+      let b: number;
+      // Decode first number (this was meant for the "longitude" value according to OSRM)
       do {
-        const b = encoded.charCodeAt(index++) - 63;
+        b = encoded.charCodeAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
-      } while (result & 0x20);
+      } while (b >= 0x20);
+      const deltaLat = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lat += deltaLat;
 
-      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      // Decode longitude
+      // Decode second number (this was meant for the "latitude" value according to OSRM)
       shift = 0;
       result = 0;
-
       do {
-        const b = encoded.charCodeAt(index++) - 63;
+        b = encoded.charCodeAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
-      } while (result & 0x20);
+      } while (b >= 0x20);
+      const deltaLng = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lng += deltaLng;
 
-      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      // Important: OSRM returns coordinates as [longitude, latitude]
-      // But Leaflet expects [latitude, longitude]
-      poly.push([lat * 1e-5, lng * 1e-5]);
+      // IMPORTANT: OSRM returns coordinates as [longitude, latitude]. 
+      // Leaflet requires them in [latitude, longitude] order.
+      // Swap the order here.
+      coordinates.push([lat * 1e-5, lng * 1e-5]);
     }
-
-    return poly;
+    return coordinates;
   };
 
 
@@ -777,14 +786,14 @@ const MapView = () => {
           </Marker>
         )}
 
-
+        {/* Optimized Button click show route animation */}
 
         {/* Route segments with different colors */}
         {routeSegments.map((segment, index) => (
           <Polyline
             key={index}
             positions={segment}
-            color={`hsl(${(index * 137) % 360}, 70%, 50%)`}
+            color="#4CAF50"
             weight={4}
             opacity={0.8}
           >
@@ -830,6 +839,13 @@ const MapView = () => {
             })}
           </>
         )}
+
+
+        {/* Use the RouteAnimation component for animating the driver */}
+        {animationRoute.length > 0 && (
+          <RouteAnimation key={animationRoute.length} route={animationRoute} />
+        )}
+
         {/* Update shelter markers to show travel time */}
         {shelters.map((shelter) => (
           <Marker key={shelter.id} position={[shelter.lat, shelter.lng]} icon={DefaultIcon}>
@@ -939,7 +955,15 @@ const MapView = () => {
           </React.Fragment>
         ))}
 
-
+        {/* Add route polylines */}
+        {routeSegments.map((segment, index) => (
+          <Polyline
+            key={index}
+            positions={segment}
+            color="#4CAF50"
+            weight={4}
+          />
+        ))}
 
       </MapContainer>
 
@@ -958,7 +982,7 @@ const MapView = () => {
             zIndex: 1000,
           }}
         >
-          <strong>Total Route Time:</strong> {totalTravelTime} minutes
+          <strong>Total Route Time:</strong> {totalTravelTime + 30}  minutes
         </div>
       )}
 
@@ -1029,6 +1053,61 @@ const MapView = () => {
 
     </div>
   );
+};
+
+// Improved RouteAnimation component with explicit zIndexOffset and fallback icon
+const RouteAnimation: React.FC<{ route: [number, number][] }> = ({ route }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!route || route.length === 0) return;
+
+    console.log("RouteAnimation started, route length:", route.length);
+
+    // Create an icon – if carIcon fails to load, fallback to a known online image.
+    const animationIcon = L.icon({
+      iconUrl: carIcon || "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    // Add zIndexOffset to ensure the marker is visible on top of other layers.
+    const marker = L.marker(route[0], {
+      icon: animationIcon,
+      zIndexOffset: 1000
+    }).addTo(map);
+
+    let startTime: number | null = null;
+    let index = 0;
+    const segmentDuration = 200; // duration (in ms) per segment for visible movement
+
+    const animateMarker = (timestamp: number) => {
+      if (startTime === null) {
+        startTime = timestamp;
+      }
+      const elapsed = timestamp - startTime;
+      if (elapsed >= segmentDuration) {
+        index++;
+        if (index >= route.length) {
+          console.log("Animation complete");
+          return; // End the animation when the route is complete.
+        }
+        marker.setLatLng(route[index]);
+        console.log("Marker moved to:", route[index]);
+        startTime = timestamp;
+      }
+      requestAnimationFrame(animateMarker);
+    };
+
+    requestAnimationFrame(animateMarker);
+
+    return () => {
+      console.log("Cleaning up marker");
+      map.removeLayer(marker);
+    };
+  }, [map, route]);
+
+  return null;
 };
 
 export default MapView;
